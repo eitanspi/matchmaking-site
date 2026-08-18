@@ -16,7 +16,7 @@ const FSA = 'showOpenFilePicker' in window;
 
 const state = {
   data: { candidates: [], matches: [], ai: {} },
-  view: 'candidates', admin: false, filters: {}, sort: 'score',
+  view: 'candidates', admin: false, filters: {}, sort: 'score', aiVipOnly: false,
   fileHandle: null, fileName: '', saveTimer: null, loaded: false,
 };
 
@@ -201,6 +201,9 @@ function filteredCandidates() {
     if (f.ethnicity && !(c.ethnicity || '').includes(f.ethnicity)) return false;
     if (f.age_min && !(c.age >= f.age_min)) return false;
     if (f.age_max && !(c.age <= f.age_max)) return false;
+    if (f.height_min && !(c.height >= f.height_min)) return false;
+    if (f.height_max && !(c.height <= f.height_max)) return false;
+    if (f.vip && !c.vip) return false;
     return true;
   });
 }
@@ -231,6 +234,9 @@ function viewCandidates() {
       <label class="field">עדה<input name="ethnicity" value="${esc(f.ethnicity || '')}"></label>
       <label class="field">גיל מ־<input name="age_min" type="number" value="${f.age_min || ''}"></label>
       <label class="field">גיל עד<input name="age_max" type="number" value="${f.age_max || ''}"></label>
+      <label class="field">גובה מ־<input name="height_min" type="number" value="${f.height_min || ''}"></label>
+      <label class="field">גובה עד<input name="height_max" type="number" value="${f.height_max || ''}"></label>
+      <label class="field">VIP<span style="display:flex;align-items:center;height:38px"><input name="vip" type="checkbox" ${f.vip ? 'checked' : ''} style="width:auto"> <span style="margin-inline-start:6px" class="subtle">רק VIP</span></span></label>
     </div></form>
     ${list.length ? `<div class="grid">${cards}</div>` : '<div class="card empty">אין מועמדים תואמים.</div>'}`;
 }
@@ -253,6 +259,7 @@ function viewMatches() {
 function viewAI() {
   const groups = Object.keys(state.data.ai).map(cid => {
     const c = candById(Number(cid)); if (!c) return null;
+    if (state.aiVipOnly && !c.vip) return null;
     const sugg = (state.data.ai[cid] || []).slice().sort((x, y) => (y.score || 0) - (x.score || 0));
     return { c, sugg };
   }).filter(Boolean);
@@ -269,7 +276,9 @@ function viewAI() {
         <td class="row-actions">${state.admin ? `<button class="btn ok sm" data-action="mk-match" data-a="${g.c.id}" data-b="${t.id}">שדך</button><button class="btn danger sm" data-action="ai-del" data-cid="${g.c.id}" data-sid="${t.id}">✕ מחק</button>` : ''}</td></tr>`; }).join('')}
     </tbody></table></div>`).join('');
   return `<div class="page-head"><h1>התאמות</h1><span class="subtle">${groups.length} מועמדים</span>
-    <span class="spacer"></span><span class="subtle">מיון:</span><div class="chips">${chips}</div>
+    <span class="spacer"></span>
+    <button class="chip ${state.aiVipOnly ? 'active' : ''}" data-action="ai-vip">⭐ VIP בלבד</button>
+    <span class="subtle">מיון:</span><div class="chips">${chips}</div>
     ${state.admin && groups.length ? '<button class="btn danger sm" data-action="ai-del-all">🗑 מחק את כל ההתאמות</button>' : ''}</div>
     ${groups.length ? body : '<div class="card empty">אין התאמות. ייבא/י אקסל הצעות (במצב ניהול).</div>'}`;
 }
@@ -505,15 +514,21 @@ async function importMatchesXlsx(file) {
 // ---------- events ----------
 function wire() {
   const form = $('#filter-form');
-  if (form) form.addEventListener('input', () => {
-    const fd = new FormData(form);
-    state.filters = { name: fd.get('name').trim(), gender: fd.get('gender'), religious: fd.get('religious').trim(),
-      location: fd.get('location').trim(), ethnicity: fd.get('ethnicity').trim(),
-      age_min: parseInt(fd.get('age_min'), 10) || null, age_max: parseInt(fd.get('age_max'), 10) || null };
-    const target = $('#main .grid, #main .empty');
-    if (target) target.outerHTML = filteredCandidates().length ? `<div class="grid">${filteredCandidates().map(cardHTML).join('')}</div>` : '<div class="card empty">אין מועמדים תואמים.</div>';
-    const sub = $('.page-head .subtle'); if (sub) sub.textContent = `${filteredCandidates().length} מוצגים`;
-  });
+  if (form) {
+    const applyFilters = () => {
+      const fd = new FormData(form);
+      state.filters = { name: fd.get('name').trim(), gender: fd.get('gender'), religious: fd.get('religious').trim(),
+        location: fd.get('location').trim(), ethnicity: fd.get('ethnicity').trim(),
+        age_min: parseInt(fd.get('age_min'), 10) || null, age_max: parseInt(fd.get('age_max'), 10) || null,
+        height_min: parseInt(fd.get('height_min'), 10) || null, height_max: parseInt(fd.get('height_max'), 10) || null,
+        vip: fd.get('vip') === 'on' };
+      const target = $('#main .grid, #main .empty');
+      if (target) target.outerHTML = filteredCandidates().length ? `<div class="grid">${filteredCandidates().map(cardHTML).join('')}</div>` : '<div class="card empty">אין מועמדים תואמים.</div>';
+      const sub = $('.page-head .subtle'); if (sub) sub.textContent = `${filteredCandidates().length} מוצגים`;
+    };
+    form.addEventListener('input', applyFilters);
+    form.addEventListener('change', applyFilters);
+  }
   const bind = (sel, handler) => { const el = $(sel); if (el) el.addEventListener('change', e => { if (e.target.files[0]) handler(e.target.files[0]); }); };
   bind('#zip-file', handleZipFile);
   bind('#xls-cands-file', importCandidatesXlsx);
@@ -545,6 +560,7 @@ document.addEventListener('click', e => {
   else if (a === 'mk-match') mkMatch(Number(t.dataset.a), Number(t.dataset.b));
   else if (a === 'del-match') { state.data.matches.splice(Number(t.dataset.idx), 1); markDirty(); render(); }
   else if (a === 'sort') { state.sort = t.dataset.sort; render(); }
+  else if (a === 'ai-vip') { state.aiVipOnly = !state.aiVipOnly; render(); }
   else if (a === 'import-zip') $('#zip-file').click();
   else if (a === 'xls-cands-in') $('#xls-cands-file').click();
   else if (a === 'xls-matches-in') $('#xls-matches-file').click();
