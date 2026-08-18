@@ -77,8 +77,10 @@ async function verifyPermission(handle) {
   return (await handle.requestPermission(opts)) === 'granted';
 }
 function normalizeData(d) {
-  return { candidates: d.candidates || [], matches: d.matches || [], ai: d.ai || {} };
+  return { candidates: d.candidates || [], matches: d.matches || [], ai: d.ai || {},
+    todo: d.todo || [], tasks: d.tasks || [] };
 }
+function nextItemId(list) { return (list || []).reduce((m, x) => Math.max(m, x.id || 0), 0) + 1; }
 async function loadFromHandle(handle) {
   if (!(await verifyPermission(handle))) { toast('לא ניתנה הרשאה לקובץ'); return false; }
   const file = await handle.getFile();
@@ -95,7 +97,7 @@ async function openDatabase() {
 async function newDatabase() {
   try {
     const h = await window.showSaveFilePicker({ suggestedName: 'shidduchim.json', types: JSON_TYPES });
-    state.data = { candidates: [], matches: [], ai: {} };
+    state.data = { candidates: [], matches: [], ai: {}, todo: [], tasks: [] };
     state.fileHandle = h; state.fileName = h.name;
     await saveNow(); await idbSet('handle', h);
     state.admin = true; enterApp();
@@ -171,7 +173,11 @@ $('#close-btn').addEventListener('click', () => location.reload());
 // ---------- render ----------
 function render() {
   const m = $('#main');
-  m.innerHTML = state.view === 'candidates' ? viewCandidates() : state.view === 'matches' ? viewMatches() : viewAI();
+  m.innerHTML = state.view === 'candidates' ? viewCandidates()
+    : state.view === 'matches' ? viewMatches()
+    : state.view === 'ai' ? viewAI()
+    : state.view === 'todo' ? viewTodo()
+    : viewTasks();
   wire();
 }
 
@@ -267,6 +273,46 @@ function viewAI() {
     ${groups.length ? body : '<div class="card empty">אין התאמות. ייבא/י אקסל הצעות (במצב ניהול).</div>'}`;
 }
 
+// ---------- people to add (todo list) ----------
+function viewTodo() {
+  const list = state.data.todo || [];
+  const addForm = state.admin ? `
+    <form class="card" id="todo-form"><div class="filters">
+      <label class="field" style="flex:2">שם<input name="name" placeholder="שם האדם" required></label>
+      <label class="field" style="flex:3">הערה / מאיפה<input name="note" placeholder="טלפון, ממליץ, פרטים..."></label>
+      <label class="field">&nbsp;<button class="btn ok" type="submit">הוסף לרשימה</button></label>
+    </div></form>` : '';
+  const rows = list.map(t => `<tr style="${t.done ? 'opacity:.5' : ''}">
+    <td><input type="checkbox" data-action="todo-done" data-id="${t.id}" ${t.done ? 'checked' : ''} style="width:auto" ${state.admin ? '' : 'disabled'}></td>
+    <td style="${t.done ? 'text-decoration:line-through' : 'font-weight:600'}">${esc(t.name)}</td>
+    <td class="subtle">${esc(t.note || '')}</td>
+    <td class="row-actions">${state.admin ? `<button class="btn ok sm" data-action="todo-to-cand" data-id="${t.id}">➕ הוסף כמועמד</button><button class="btn danger sm" data-action="todo-del" data-id="${t.id}">מחק</button>` : ''}</td>
+  </tr>`).join('');
+  const open = list.filter(t => !t.done).length;
+  return `<div class="page-head"><h1>אנשים להוסיף</h1><span class="subtle">${open} ממתינים${list.length - open ? ` · ${list.length - open} טופלו` : ''}</span></div>
+    ${addForm}
+    ${list.length ? `<div class="card"><table><thead><tr><th></th><th>שם</th><th>הערה</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="card empty">הרשימה ריקה. הוסף/י אנשים שכדאי להכניס למאגר.</div>'}`;
+}
+
+// ---------- tasks (to-do) ----------
+function viewTasks() {
+  const list = state.data.tasks || [];
+  const addForm = state.admin ? `
+    <form class="card" id="task-form"><div class="filters">
+      <label class="field" style="flex:5">משימה חדשה<input name="text" placeholder="מה צריך לעשות?" required></label>
+      <label class="field">&nbsp;<button class="btn ok" type="submit">הוסף</button></label>
+    </div></form>` : '';
+  const rows = list.map(t => `<tr style="${t.done ? 'opacity:.5' : ''}">
+    <td><input type="checkbox" data-action="task-done" data-id="${t.id}" ${t.done ? 'checked' : ''} style="width:auto" ${state.admin ? '' : 'disabled'}></td>
+    <td style="${t.done ? 'text-decoration:line-through' : ''}">${esc(t.text)}</td>
+    <td class="row-actions">${state.admin ? `<button class="btn danger sm" data-action="task-del" data-id="${t.id}">מחק</button>` : ''}</td>
+  </tr>`).join('');
+  const open = list.filter(t => !t.done).length;
+  return `<div class="page-head"><h1>משימות</h1><span class="subtle">${open} פתוחות${list.length - open ? ` · ${list.length - open} בוצעו` : ''}</span></div>
+    ${addForm}
+    ${list.length ? `<div class="card"><table><tbody>${rows}</tbody></table></div>` : '<div class="card empty">אין משימות. הוסף/י מה שצריך לעשות.</div>'}`;
+}
+
 // ---------- candidate detail ----------
 function openCandidate(id) {
   const c = candById(id); if (!c) return;
@@ -305,8 +351,8 @@ function renderEditorPhotos() {
   const s = $('#editor-photos'); if (!s) return;
   s.innerHTML = editorPhotos.map((src, i) => `<div style="position:relative"><img src="${src}" style="width:90px;height:90px;object-fit:cover;border-radius:10px;border:1px solid var(--line)"><button type="button" class="x" data-action="rm-photo" data-i="${i}" style="position:absolute;top:-6px;inset-inline-start:-6px;width:24px;height:24px;font-size:.8rem">✕</button></div>`).join('') || '<span class="subtle">אין תמונות</span>';
 }
-function openEditor(id) {
-  const c = id ? candById(id) : {};
+function openEditor(id, prefill) {
+  const c = id ? candById(id) : (prefill || {});
   editorPhotos = (c.photos || []).slice();
   const fields = FORM_FIELDS.map(([k, label, type]) => {
     const v = c[k] == null ? '' : c[k]; let input;
@@ -333,6 +379,11 @@ function openEditor(id) {
     obj.vip = fd.get('vip') === 'on'; obj.takiru = fd.get('takiru') === 'on'; obj.photos = editorPhotos.slice();
     if (!obj.name) { toast('חובה להזין שם'); return; }
     if (!id) state.data.candidates.push(obj);
+    if (!id && state._todoConvertId != null) {   // came from "add as candidate"
+      const t = (state.data.todo || []).find(x => x.id === state._todoConvertId);
+      if (t) t.done = true;
+      state._todoConvertId = null;
+    }
     markDirty(); closeModal(); render(); toast(id ? 'עודכן' : 'נוסף');
   });
 }
@@ -466,6 +517,20 @@ function wire() {
   bind('#zip-file', handleZipFile);
   bind('#xls-cands-file', importCandidatesXlsx);
   bind('#xls-matches-file', importMatchesXlsx);
+  const tf = $('#todo-form');
+  if (tf) tf.addEventListener('submit', e => {
+    e.preventDefault(); const fd = new FormData(e.target);
+    const name = (fd.get('name') || '').trim(); if (!name) return;
+    state.data.todo.push({ id: nextItemId(state.data.todo), name, note: (fd.get('note') || '').trim(), done: false });
+    markDirty(); render();
+  });
+  const kf = $('#task-form');
+  if (kf) kf.addEventListener('submit', e => {
+    e.preventDefault(); const fd = new FormData(e.target);
+    const text = (fd.get('text') || '').trim(); if (!text) return;
+    state.data.tasks.push({ id: nextItemId(state.data.tasks), text, done: false });
+    markDirty(); render();
+  });
 }
 
 document.addEventListener('click', e => {
@@ -486,12 +551,19 @@ document.addEventListener('click', e => {
   else if (a === 'download') downloadJSON();
   else if (a === 'rm-photo') { editorPhotos.splice(Number(t.dataset.i), 1); renderEditorPhotos(); }
   else if (a === 'imp-confirm') confirmImport();
+  else if (a === 'todo-del') { state.data.todo = state.data.todo.filter(x => x.id !== Number(t.dataset.id)); markDirty(); render(); }
+  else if (a === 'todo-to-cand') { const it = state.data.todo.find(x => x.id === Number(t.dataset.id)); if (it) { state._todoConvertId = it.id; openEditor(null, { name: it.name, description: it.note || '' }); } }
+  else if (a === 'task-del') { state.data.tasks = state.data.tasks.filter(x => x.id !== Number(t.dataset.id)); markDirty(); render(); }
 });
 document.addEventListener('change', e => {
   const s = e.target.closest('[data-action="status"]');
   if (s) { state.data.matches[Number(s.dataset.idx)].status = s.value; markDirty(); return; }
   const t = e.target.closest('[data-action="imp-toggle"]');
-  if (t) { const c = pendingImport[Number(t.dataset.i)]; if (c) c._selected = t.checked; }
+  if (t) { const c = pendingImport[Number(t.dataset.i)]; if (c) c._selected = t.checked; return; }
+  const td = e.target.closest('[data-action="todo-done"]');
+  if (td) { const it = state.data.todo.find(x => x.id === Number(td.dataset.id)); if (it) { it.done = e.target.checked; markDirty(); render(); } return; }
+  const tk = e.target.closest('[data-action="task-done"]');
+  if (tk) { const it = state.data.tasks.find(x => x.id === Number(tk.dataset.id)); if (it) { it.done = e.target.checked; markDirty(); render(); } }
 });
 
 // ---------- sample ----------
@@ -500,6 +572,7 @@ const SAMPLE = { candidates: [
   { id: 2, name: 'נועה כהן', age: 27, gender: 'female', height: 165, religious_level: 'דתי לאומי', location: 'מודיעין', occupation: 'מורה', ethnicity: 'אשכנזי', marital_status: 'רווקה', description: 'רגישה, אכפתית ואוהבת אנשים.', looking_for: 'בחור עם ערכים ולב טוב', vip: false, takiru: false, photos: [] },
   { id: 3, name: 'אבי מזרחי', age: 33, gender: 'male', height: 182, religious_level: 'דתי תורני', location: 'פתח תקווה', occupation: 'רואה חשבון', ethnicity: 'תימני', marital_status: 'רווק', description: 'יסודי, נאמן ובעל שאיפות.', looking_for: 'בחורה תורנית ושמחה', vip: false, takiru: true, photos: [] },
   { id: 4, name: 'שירה פרץ', age: 31, gender: 'female', height: 170, religious_level: 'דתי תורני', location: 'רמת גן', occupation: 'עורכת דין', ethnicity: 'מרוקאי', marital_status: 'רווקה', description: 'חכמה, עצמאית ובעלת חוש הומור.', looking_for: 'בחור יציב ורגוע', vip: false, takiru: false, photos: [] },
-], matches: [{ a: 1, b: 2, status: 'proposed', notes: 'דוגמה' }], ai: { '1': [{ id: 2, score: 9, reason: 'התאמת ערכים, גיל ומיקום מצוינת.' }, { id: 4, score: 7.5, reason: 'רמה דתית קרובה ואופי משלים.' }], '3': [{ id: 4, score: 8.5, reason: 'שניהם תורניים עם שאיפה לבית של תורה.' }] } };
+], matches: [{ a: 1, b: 2, status: 'proposed', notes: 'דוגמה' }], ai: { '1': [{ id: 2, score: 9, reason: 'התאמת ערכים, גיל ומיקום מצוינת.' }, { id: 4, score: 7.5, reason: 'רמה דתית קרובה ואופי משלים.' }], '3': [{ id: 4, score: 8.5, reason: 'שניהם תורניים עם שאיפה לבית של תורה.' }] },
+  todo: [{ id: 1, name: 'מירי כהן', note: 'ממליצה: דודה שרה', done: false }], tasks: [{ id: 1, text: 'להתקשר לשדכן על אבי מזרחי', done: false }] };
 
 initStart();
