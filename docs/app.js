@@ -266,10 +266,11 @@ function viewAI() {
     ${g.sugg.map(s => { const t = candById(s.id); if (!t) return ''; const sc = s.score || 0, cl = sc >= 8 ? 'high' : sc >= 6 ? 'mid' : 'low';
       return `<tr><td><a data-action="open" data-id="${t.id}" href="#">${esc(t.name)}</a></td><td>${t.age || ''}</td>
         <td><span class="score ${cl}">${sc}</span></td><td class="subtle">${esc(s.reason || '')}</td>
-        <td>${state.admin ? `<button class="btn ok sm" data-action="mk-match" data-a="${g.c.id}" data-b="${t.id}">שדך</button>` : ''}</td></tr>`; }).join('')}
+        <td class="row-actions">${state.admin ? `<button class="btn ok sm" data-action="mk-match" data-a="${g.c.id}" data-b="${t.id}">שדך</button><button class="btn danger sm" data-action="ai-del" data-cid="${g.c.id}" data-sid="${t.id}">✕ מחק</button>` : ''}</td></tr>`; }).join('')}
     </tbody></table></div>`).join('');
   return `<div class="page-head"><h1>התאמות</h1><span class="subtle">${groups.length} מועמדים</span>
-    <span class="spacer"></span><span class="subtle">מיון:</span><div class="chips">${chips}</div></div>
+    <span class="spacer"></span><span class="subtle">מיון:</span><div class="chips">${chips}</div>
+    ${state.admin && groups.length ? '<button class="btn danger sm" data-action="ai-del-all">🗑 מחק את כל ההתאמות</button>' : ''}</div>
     ${groups.length ? body : '<div class="card empty">אין התאמות. ייבא/י אקסל הצעות (במצב ניהול).</div>'}`;
 }
 
@@ -554,6 +555,20 @@ document.addEventListener('click', e => {
   else if (a === 'todo-del') { state.data.todo = state.data.todo.filter(x => x.id !== Number(t.dataset.id)); markDirty(); render(); }
   else if (a === 'todo-to-cand') { const it = state.data.todo.find(x => x.id === Number(t.dataset.id)); if (it) { state._todoConvertId = it.id; openEditor(null, { name: it.name, description: it.note || '' }); } }
   else if (a === 'task-del') { state.data.tasks = state.data.tasks.filter(x => x.id !== Number(t.dataset.id)); markDirty(); render(); }
+  else if (a === 'ai-del') {
+    const cid = Number(t.dataset.cid), sid = Number(t.dataset.sid);
+    if (state.data.ai[cid]) {
+      state.data.ai[cid] = state.data.ai[cid].filter(s => s.id !== sid);
+      if (!state.data.ai[cid].length) delete state.data.ai[cid];
+      markDirty(); render(); toast('ההתאמה נמחקה');
+    }
+  }
+  else if (a === 'ai-del-all') {
+    const n = Object.keys(state.data.ai).length;
+    if (confirm(`למחוק את כל ההתאמות (${n} מועמדים)? פעולה זו אינה הפיכה.`)) {
+      state.data.ai = {}; markDirty(); render(); toast('כל ההתאמות נמחקו');
+    }
+  }
 });
 document.addEventListener('change', e => {
   const s = e.target.closest('[data-action="status"]');
