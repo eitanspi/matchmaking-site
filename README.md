@@ -1,8 +1,48 @@
 # שידוכים — Matchmaking Site
 
-A small, self-hosted web app for managing a matchmaking database: candidates,
-matches, and AI-generated match suggestions. Hebrew, right-to-left UI. Built with
-Flask + SQLite, no external services required.
+A matchmaking database for candidates, matches, and AI-generated match
+suggestions. Hebrew, right-to-left UI. Comes in **two flavours**:
+
+1. **Static site (`docs/`)** — a client-side app hosted free on GitHub Pages.
+   All data lives in one **encrypted** file (`docs/data.enc`); the site asks for
+   a password and decrypts it in the browser. Nothing readable is ever public.
+   This is the "just open the link and it works" version.
+2. **Flask server (root)** — the full dynamic app (SQLite backend). Use it if you
+   want server-side storage and multi-user editing. See "Flask version" below.
+
+## Live static site (GitHub Pages)
+
+Once Pages is enabled for this repo, the site is at
+`https://<user>.github.io/matchmaking-site/`. Open it, type the password, and the
+candidate gallery, filters, matches and AI suggestions load in your browser.
+
+- **Demo password:** `demo1234` (protects only fictional sample data).
+- **Admin mode** (🔧 ניהול): add/edit/delete candidates and matches in the
+  browser, then **⬇ שמור (ייצוא מוצפן)** downloads an updated `data.enc`.
+- **Saving changes:** replace `docs/data.enc` in the repo with the downloaded
+  file (drag it into GitHub's web UI, or commit it). Pages redeploys in ~1 min.
+- **Change the password:** in admin mode, export and type a new password when
+  prompted — the new `data.enc` is encrypted with it. Don't commit the password
+  anywhere.
+
+### Updating data from a spreadsheet (maintainer)
+
+`tools/matchdata.py` reads/writes the same encrypted format from Python:
+
+```bash
+python tools/matchdata.py decrypt <password>            # docs/data.enc -> plaintext JSON (stdout)
+python tools/matchdata.py encrypt <password> data.json  # data.json -> docs/data.enc
+python tools/matchdata.py sample  <password>            # regenerate demo data
+```
+
+Encryption: AES-256-GCM with a PBKDF2-SHA256 (200k iterations) key — identical to
+the browser's WebCrypto, so files round-trip between Python and the site.
+
+---
+
+## Flask version (optional full server)
+
+A small, self-hosted web app for the same data, built with Flask + SQLite.
 
 ## Features
 

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>שידוכים</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- password gate -->
+  <div id="gate" class="gate">
+    <form id="gate-form" class="gate-card">
+      <div class="logo">💍</div>
+      <h1>שידוכים</h1>
+      <p>הזן/י סיסמה כדי לפתוח את המאגר</p>
+      <input id="gate-pass" type="password" placeholder="סיסמה" autocomplete="current-password" autofocus>
+      <div style="margin-top:14px"><button class="btn" type="submit" style="width:100%">כניסה</button></div>
+      <div id="gate-err" class="gate-err"></div>
+    </form>
+  </div>
+
+  <!-- app -->
+  <div id="app" class="hidden">
+    <nav class="nav">
+      <div class="nav-inner">
+        <span class="brand">💍 שידוכים</span>
+        <button class="tab active" data-view="candidates">מועמדים</button>
+        <button class="tab" data-view="matches">שידוכים</button>
+        <button class="tab" data-view="ai">התאמות AI</button>
+        <span class="spacer"></span>
+        <button id="admin-toggle" class="tab">🔧 ניהול</button>
+        <button id="lock-btn" class="tab">🔒 נעל</button>
+      </div>
+    </nav>
+    <div class="container" id="main"></div>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
