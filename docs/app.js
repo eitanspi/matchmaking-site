@@ -67,6 +67,28 @@ function photoStyle(c) {
 }
 function markDirty() { state.dirty = true; renderNav(); }
 
+// downscale an image blob/file to a compact JPEG data URI (keeps data.enc small)
+function resizeToDataURL(blobOrFile, maxDim = 1000, quality = 0.82) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blobOrFile);
+    const img = new Image();
+    img.onload = () => {
+      let { width: w, height: h } = img;
+      if (w > maxDim || h > maxDim) {
+        if (w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
+        else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
 // ---------- boot / gate ----------
 async function tryUnlock(password) {
   const resp = await fetch('data.enc', { cache: 'no-store' });
@@ -163,6 +185,8 @@ function viewCandidates() {
   const f = state.filters;
   const admin = state.admin ? `
     <button class="btn ok sm" data-action="new">+ מועמד/ת חדש/ה</button>
+    <button class="btn sm" data-action="import-zip">📦 ייבוא ZIP מוואטסאפ</button>
+    <input id="zip-file" type="file" accept=".zip" class="hidden">
     <button class="btn secondary sm" data-action="export">⬇ שמור (ייצוא מוצפן)</button>
     <button class="btn ghost sm" data-action="import">⬆ ייבוא JSON</button>
     <input id="import-file" type="file" accept=".json,.enc" class="hidden">
@@ -322,8 +346,22 @@ const FORM_FIELDS = [
   ['phone', 'טלפון', 'text'], ['description', 'תיאור', 'area'], ['looking_for', 'מה מחפש/ת', 'area'],
   ['references', 'ממליצים', 'text'],
 ];
+let editorPhotos = [];  // working copy of the edited candidate's photos (data URIs)
+
+function renderEditorPhotos() {
+  const strip = $('#editor-photos');
+  if (!strip) return;
+  strip.innerHTML = editorPhotos.map((src, i) => `
+    <div style="position:relative">
+      <img src="${src}" style="width:90px;height:90px;object-fit:cover;border-radius:10px;border:1px solid var(--line)">
+      <button type="button" class="x" data-action="rm-photo" data-i="${i}"
+        style="position:absolute;top:-6px;inset-inline-start:-6px;width:24px;height:24px;font-size:.8rem">✕</button>
+    </div>`).join('') || '<span class="subtle">אין תמונות</span>';
+}
+
 function openEditor(id) {
   const c = id ? candById(id) : {};
+  editorPhotos = (c.photos || []).slice();
   const fields = FORM_FIELDS.map(([k, label, type]) => {
     const v = c[k] == null ? '' : c[k];
     let input;
@@ -346,10 +384,22 @@ function openEditor(id) {
               <label class="inline"><input type="checkbox" name="takiru" ${c.takiru ? 'checked' : ''} style="width:auto"> תכירו</label>
             </div>
           </label>
+          <label class="field full">תמונות
+            <input id="editor-photo-input" type="file" accept="image/*" multiple>
+            <div id="editor-photos" class="photo-strip" style="margin-top:8px;flex-wrap:wrap;gap:8px;display:flex"></div>
+          </label>
         </div>
         <hr><button class="btn ok" type="submit">${id ? 'שמור' : 'הוסף'}</button>
       </form>
     </div>`);
+  renderEditorPhotos();
+  $('#editor-photo-input').addEventListener('change', async (e) => {
+    for (const f of e.target.files) {
+      const d = await resizeToDataURL(f);
+      if (d) editorPhotos.push(d);
+    }
+    renderEditorPhotos();
+  });
   $('#cand-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -361,6 +411,7 @@ function openEditor(id) {
     }
     obj.vip = fd.get('vip') === 'on';
     obj.takiru = fd.get('takiru') === 'on';
+    obj.photos = editorPhotos.slice();
     if (!obj.name) { toast('חובה להזין שם'); return; }
     if (!id) state.data.candidates.push(obj);
     markDirty(); closeModal(); render();
@@ -400,6 +451,95 @@ async function exportData() {
 }
 
 function importData() { $('#import-file').click(); }
+
+// ---- WhatsApp ZIP import ----
+let pendingImport = [];
+
+async function handleZipFile(file) {
+  toast('קורא את הקובץ…');
+  let zip;
+  try { zip = await JSZip.loadAsync(file); }
+  catch (e) { toast('קובץ ZIP לא תקין'); return; }
+
+  // find the chat text file
+  let chatEntry = null;
+  zip.forEach((path, entry) => {
+    if (/(^|\/)_chat\.txt$/i.test(path) || (/\.txt$/i.test(path) && !chatEntry)) chatEntry = entry;
+  });
+  if (!chatEntry) { toast('לא נמצא קובץ צ׳אט (.txt) בתוך ה-ZIP'); return; }
+
+  const chatText = await chatEntry.async('string');
+  const parsed = window.parseWhatsappChat(chatText);
+  if (!parsed.length) { toast('לא זוהו פרופילים בצ׳אט'); return; }
+
+  // map photo basenames -> zip entries
+  const byBase = {};
+  zip.forEach((path, entry) => { if (!entry.dir) byBase[path.split('/').pop()] = entry; });
+
+  const existingNames = new Set(state.data.candidates.map(c => c.name));
+  toast('מעבד תמונות…');
+  const results = [];
+  for (const p of parsed) {
+    const photos = [];
+    for (const fn of (p.photos || [])) {
+      const entry = byBase[fn] || byBase[fn.split('/').pop()];
+      if (!entry) continue;
+      const blob = await entry.async('blob');
+      const d = await resizeToDataURL(blob);
+      if (d) photos.push(d);
+    }
+    results.push({
+      id: null, name: p.name, age: p.age, gender: p.gender, height: p.height,
+      religious_level: p.religious_level, location: p.location, phone: p.phone,
+      occupation: p.occupation, description: p.description, looking_for: p.looking_for,
+      references: p.references, ethnicity: p.ethnicity, marital_status: p.marital_status,
+      vip: false, takiru: false, photos,
+      _dup: existingNames.has(p.name),
+    });
+  }
+  pendingImport = results;
+  showImportPreview();
+}
+
+function showImportPreview() {
+  const rows = pendingImport.map((c, i) => `
+    <tr style="${c._dup ? 'opacity:.5' : ''}">
+      <td><input type="checkbox" data-action="imp-toggle" data-i="${i}" ${c._dup ? '' : 'checked'} style="width:auto"></td>
+      <td>${c.photos.length ? `<img src="${c.photos[0]}" style="width:44px;height:44px;object-fit:cover;border-radius:8px">` : '👤'}</td>
+      <td>${esc(c.name)}${c._dup ? ' <span class="subtle">(כבר קיים)</span>' : ''}</td>
+      <td>${c.age || ''}</td>
+      <td>${c.gender ? GENDER_HE[c.gender] : '<span class="subtle">?</span>'}</td>
+      <td class="subtle">${esc(c.religious_level || '')}${c.location ? ' · ' + esc(c.location) : ''}</td>
+      <td>${c.photos.length}📷</td>
+    </tr>`).join('');
+  const newCount = pendingImport.filter(c => !c._dup).length;
+  showModal(`
+    <div class="modal-head"><h2 style="margin:0">ייבוא מוואטסאפ</h2>
+      <span class="subtle">זוהו ${pendingImport.length} פרופילים · ${newCount} חדשים</span>
+      <span class="spacer"></span>
+      <button class="btn ok sm" data-action="imp-confirm">הוסף מסומנים</button>
+      <button class="x" data-action="close">✕</button></div>
+    <div class="modal-body" style="max-height:70vh;overflow:auto">
+      <p class="subtle">בדוק/י את הפרופילים שזוהו. אפשר לבטל סימון של פרופילים שלא לייבא. לאחר ההוספה יש ללחוץ "שמור (ייצוא מוצפן)" כדי לשמור.</p>
+      <table><thead><tr><th></th><th></th><th>שם</th><th>גיל</th><th>מין</th><th>פרטים</th><th>תמונות</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`);
+}
+
+function confirmImport() {
+  let added = 0;
+  for (const c of pendingImport) {
+    if (c._selected === false) continue;
+    if (c._selected === undefined && c._dup) continue; // default: skip dups
+    const { _dup, _selected, ...clean } = c;
+    clean.id = nextId();
+    state.data.candidates.push(clean);
+    added++;
+  }
+  pendingImport = [];
+  markDirty(); closeModal(); render();
+  toast(`נוספו ${added} מועמדים — אל תשכח/י לייצא כדי לשמור`);
+}
 
 function handleImportFile(file) {
   const reader = new FileReader();
@@ -441,6 +581,8 @@ function wire() {
   }
   const imp = $('#import-file');
   if (imp) imp.addEventListener('change', e => { if (e.target.files[0]) handleImportFile(e.target.files[0]); });
+  const zf = $('#zip-file');
+  if (zf) zf.addEventListener('change', e => { if (e.target.files[0]) handleZipFile(e.target.files[0]); });
 }
 
 function renderGridOnly() {
@@ -479,6 +621,17 @@ document.addEventListener('click', (e) => {
   else if (a === 'sort') { state.sort = t.dataset.sort; render(); }
   else if (a === 'export') exportData();
   else if (a === 'import') importData();
+  else if (a === 'import-zip') $('#zip-file').click();
+  else if (a === 'rm-photo') { editorPhotos.splice(Number(t.dataset.i), 1); renderEditorPhotos(); }
+  else if (a === 'imp-confirm') confirmImport();
+});
+
+// import-preview checkboxes
+document.addEventListener('change', (e) => {
+  const t = e.target.closest('[data-action="imp-toggle"]');
+  if (!t) return;
+  const c = pendingImport[Number(t.dataset.i)];
+  if (c) c._selected = t.checked;
 });
 
 // status <select> change (matches table)

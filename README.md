@@ -18,7 +18,16 @@ candidate gallery, filters, matches and AI suggestions load in your browser.
 
 - **Demo password:** `demo1234` (protects only fictional sample data).
 - **Admin mode** (🔧 ניהול): add/edit/delete candidates and matches in the
-  browser, then **⬇ שמור (ייצוא מוצפן)** downloads an updated `data.enc`.
+  browser, upload photos, then **⬇ שמור (ייצוא מוצפן)** downloads an updated `data.enc`.
+- **Photos:** add them per candidate in the editor. Images are downscaled in the
+  browser (max ~1000px JPEG) and stored inside the encrypted data, so they stay
+  private too.
+- **WhatsApp ZIP import** (📦): drop a WhatsApp chat export (`.zip` with
+  `_chat.txt` + photos). The site unzips and parses it fully in the browser into
+  candidates — with photos attached — using a robust parser (`parser.js`, ported
+  from the Python `parser.py`) that handles many free-text and structured Hebrew
+  profile formats. A preview lets you deselect before adding; duplicates (by name)
+  are skipped by default. Then export to save.
 - **Saving changes:** replace `docs/data.enc` in the repo with the downloaded
   file (drag it into GitHub's web UI, or commit it). Pages redeploys in ~1 min.
 - **Change the password:** in admin mode, export and type a new password when
