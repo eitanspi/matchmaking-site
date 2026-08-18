@@ -1,0 +1,19 @@
+# Render blueprint — deploy this repo as a live web service.
+# In Render: New + -> Blueprint -> pick this repo. A persistent disk keeps the
+# SQLite database across restarts/deploys so candidate data is never lost.
+services:
+  - type: web
+    name: matchmaking-site
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MATCHMAKING_DB
+        value: /var/data/matchmaking.db
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
