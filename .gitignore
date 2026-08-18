@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# App data — never commit real candidate data
+matchmaking.db
+*.sqlite
+*.sqlite3
+static/photos/*
+!static/photos/.gitkeep
+
+# Uploaded / generated spreadsheets
+*.xlsx
+
+# Secrets
+api_key.txt
+.env
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

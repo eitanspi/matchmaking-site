@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}מועמדים{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>מועמדים</h1>
+  <span class="subtle">{{ candidates|length }} רשומים</span>
+  <span class="spacer"></span>
+  <a class="btn ghost sm" href="{{ url_for('index') }}">נקה סינון</a>
+</div>
+
+<form class="card" method="get" action="{{ url_for('index') }}">
+  <div class="filters">
+    <label class="field">שם
+      <input type="text" name="name" value="{{ args.get('name','') }}" placeholder="חיפוש שם...">
+    </label>
+    <label class="field">מין
+      <select name="gender">
+        <option value="">הכל</option>
+        <option value="male" {{ 'selected' if args.get('gender')=='male' }}>זכר</option>
+        <option value="female" {{ 'selected' if args.get('gender')=='female' }}>נקבה</option>
+      </select>
+    </label>
+    <label class="field">רמה דתית
+      <input type="text" name="religious" value="{{ args.get('religious','') }}">
+    </label>
+    <label class="field">מיקום
+      <input type="text" name="location" value="{{ args.get('location','') }}">
+    </label>
+    <label class="field">עדה
+      <input type="text" name="ethnicity" value="{{ args.get('ethnicity','') }}">
+    </label>
+    <label class="field">גיל מ־
+      <input type="number" name="age_min" value="{{ args.get('age_min','') }}">
+    </label>
+    <label class="field">גיל עד
+      <input type="number" name="age_max" value="{{ args.get('age_max','') }}">
+    </label>
+    <label class="field">&nbsp;
+      <button class="btn" type="submit">סנן</button>
+    </label>
+  </div>
+</form>
+
+{% if candidates %}
+<div class="grid">
+  {% for c in candidates %}
+  <div class="c-card">
+    {% set photo = c.photos[0].filename if c.photos else None %}
+    {% if photo %}
+      <a href="{{ url_for('candidate_detail', id=c.id) }}"
+         class="c-photo" style="background-image:url('{{ url_for('static', filename='photos/' ~ photo) }}')">
+        <div class="badges">
+          {% if c.vip %}<span class="pill vip">VIP</span>{% endif %}
+          {% if c.takiru %}<span class="pill takiru">תכירו</span>{% endif %}
+        </div>
+      </a>
+    {% else %}
+      <a href="{{ url_for('candidate_detail', id=c.id) }}" class="c-photo placeholder">
+        {{ '👩' if c.gender=='female' else '👨' if c.gender=='male' else '👤' }}
+        <div class="badges">
+          {% if c.vip %}<span class="pill vip">VIP</span>{% endif %}
+          {% if c.takiru %}<span class="pill takiru">תכירו</span>{% endif %}
+        </div>
+      </a>
+    {% endif %}
+    <div class="c-body">
+      <div class="c-name"><a href="{{ url_for('candidate_detail', id=c.id) }}">{{ c.name }}</a></div>
+      <div class="c-meta">
+        {% if c.age %}{{ c.age }}{% endif %}{% if c.gender %} · <span class="pill gender-{{ c.gender }}">{{ c.gender|gender_he }}</span>{% endif %}
+      </div>
+      <div class="c-meta">
+        {{ c.religious_level or '' }}{% if c.location %} · {{ c.location }}{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card empty">
+  אין מועמדים עדיין. <a href="{{ url_for('candidate_new') }}">הוסף/י את הראשון/ה</a>
+  או ייבא/י מאקסל דרך <a href="{{ url_for('excel_page') }}">מסך האקסל</a>.
+</div>
+{% endif %}
+{% endblock %}

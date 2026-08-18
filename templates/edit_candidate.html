@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% set editing = candidate is not none %}
+{% block title %}{{ 'עריכת מועמד/ת' if editing else 'מועמד/ת חדש/ה' }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ 'עריכת ' ~ candidate.name if editing else 'מועמד/ת חדש/ה' }}</h1>
+  <span class="spacer"></span>
+  {% if editing %}<a class="btn secondary sm" href="{{ url_for('candidate_detail', id=candidate.id) }}">חזרה לפרופיל</a>{% endif %}
+</div>
+
+<form class="card" method="post" enctype="multipart/form-data"
+      action="{{ url_for('candidate_edit', id=candidate.id) if editing else url_for('candidate_new') }}">
+  <div class="form-grid">
+    <label class="field">שם מלא *
+      <input type="text" name="name" required value="{{ candidate.name if editing else '' }}">
+    </label>
+    <label class="field">מין
+      <select name="gender">
+        <option value="">—</option>
+        <option value="male" {{ 'selected' if editing and candidate.gender=='male' }}>זכר</option>
+        <option value="female" {{ 'selected' if editing and candidate.gender=='female' }}>נקבה</option>
+      </select>
+    </label>
+    <label class="field">גיל
+      <input type="number" name="age" value="{{ candidate.age if editing and candidate.age else '' }}">
+    </label>
+    <label class="field">גובה (ס״מ)
+      <input type="number" name="height" value="{{ candidate.height if editing and candidate.height else '' }}">
+    </label>
+    <label class="field">רמה דתית
+      <input type="text" name="religious_level" value="{{ candidate.religious_level if editing else '' }}">
+    </label>
+    <label class="field">מיקום
+      <input type="text" name="location" value="{{ candidate.location if editing else '' }}">
+    </label>
+    <label class="field">עדה
+      <input type="text" name="ethnicity" value="{{ candidate.ethnicity if editing else '' }}">
+    </label>
+    <label class="field">סטטוס
+      <input type="text" name="marital_status" value="{{ candidate.marital_status if editing else '' }}" placeholder="רווק/ה, גרוש/ה...">
+    </label>
+    <label class="field">עיסוק
+      <input type="text" name="occupation" value="{{ candidate.occupation if editing else '' }}">
+    </label>
+    <label class="field">טלפון
+      <input type="text" name="phone" value="{{ candidate.phone if editing else '' }}">
+    </label>
+    <label class="field full">תיאור
+      <textarea name="description">{{ candidate.description if editing else '' }}</textarea>
+    </label>
+    <label class="field full">מה מחפש/ת
+      <textarea name="looking_for">{{ candidate.looking_for if editing else '' }}</textarea>
+    </label>
+    <label class="field full">ממליצים
+      <input type="text" name="references" value="{{ candidate.references if editing else '' }}">
+    </label>
+    <label class="field full">תמונות (אפשר לבחור כמה)
+      <input type="file" name="photos" accept="image/*" multiple>
+    </label>
+  </div>
+  <hr>
+  <button class="btn ok" type="submit">{{ 'שמור שינויים' if editing else 'הוסף מועמד/ת' }}</button>
+</form>
+
+{% if editing and candidate.photos %}
+<div class="card">
+  <h2>תמונות קיימות</h2>
+  <div class="photo-strip">
+    {% for p in candidate.photos %}
+    <div style="text-align:center">
+      <img src="{{ url_for('static', filename='photos/' ~ p.filename) }}" alt="">
+      <form method="post" action="{{ url_for('candidate_edit', id=candidate.id) }}">
+        <input type="hidden" name="delete_photo" value="{{ p.id }}">
+        <button class="btn danger sm" type="submit">מחק</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

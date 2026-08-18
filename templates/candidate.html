@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ candidate.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ candidate.name }}</h1>
+  {% if candidate.vip %}<span class="pill vip">VIP</span>{% endif %}
+  {% if candidate.takiru %}<span class="pill takiru">תכירו</span>{% endif %}
+  <span class="spacer"></span>
+  <a class="btn secondary sm" href="{{ url_for('candidate_edit', id=candidate.id) }}">✎ עריכה</a>
+  <form class="inline" method="post" action="{{ url_for('candidate_toggle', id=candidate.id, flag='vip') }}">
+    <button class="btn ghost sm" type="submit">{{ 'הסר VIP' if candidate.vip else 'סמן VIP' }}</button>
+  </form>
+  <form class="inline" method="post" action="{{ url_for('candidate_toggle', id=candidate.id, flag='takiru') }}">
+    <button class="btn ghost sm" type="submit">{{ 'הסר תכירו' if candidate.takiru else 'סמן תכירו' }}</button>
+  </form>
+  <form class="inline" method="post" action="{{ url_for('candidate_delete', id=candidate.id) }}"
+        onsubmit="return confirm('למחוק את {{ candidate.name }}?');">
+    <button class="btn danger sm" type="submit">מחק</button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="detail-head">
+    {% if candidate.photos %}
+      <div class="detail-photo" style="background-image:url('{{ url_for('static', filename='photos/' ~ candidate.photos[0].filename) }}')"></div>
+    {% else %}
+      <div class="detail-photo" style="display:flex;align-items:center;justify-content:center;font-size:4rem;color:#b9c0d4">
+        {{ '👩' if candidate.gender=='female' else '👨' if candidate.gender=='male' else '👤' }}
+      </div>
+    {% endif %}
+    <div style="flex:1;min-width:260px">
+      <dl class="kv">
+        {% if candidate.age %}<dt>גיל</dt><dd>{{ candidate.age }}</dd>{% endif %}
+        {% if candidate.gender %}<dt>מין</dt><dd>{{ candidate.gender|gender_he }}</dd>{% endif %}
+        {% if candidate.height %}<dt>גובה</dt><dd>{{ candidate.height }} ס״מ</dd>{% endif %}
+        {% if candidate.religious_level %}<dt>רמה דתית</dt><dd>{{ candidate.religious_level }}</dd>{% endif %}
+        {% if candidate.location %}<dt>מיקום</dt><dd>{{ candidate.location }}</dd>{% endif %}
+        {% if candidate.ethnicity %}<dt>עדה</dt><dd>{{ candidate.ethnicity }}</dd>{% endif %}
+        {% if candidate.marital_status %}<dt>סטטוס</dt><dd>{{ candidate.marital_status }}</dd>{% endif %}
+        {% if candidate.occupation %}<dt>עיסוק</dt><dd>{{ candidate.occupation }}</dd>{% endif %}
+        {% if candidate.phone %}<dt>טלפון</dt><dd>{{ candidate.phone }}</dd>{% endif %}
+        {% if candidate.references %}<dt>ממליצים</dt><dd>{{ candidate.references }}</dd>{% endif %}
+      </dl>
+    </div>
+  </div>
+
+  {% if candidate.description %}<hr><h2>תיאור</h2><div class="prose">{{ candidate.description }}</div>{% endif %}
+  {% if candidate.looking_for %}<hr><h2>מה מחפש/ת</h2><div class="prose">{{ candidate.looking_for }}</div>{% endif %}
+
+  {% if candidate.photos|length > 1 %}
+  <hr><h2>תמונות</h2>
+  <div class="photo-strip">
+    {% for p in candidate.photos %}
+      <img src="{{ url_for('static', filename='photos/' ~ p.filename) }}" alt="">
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+{% if ai_matches %}
+<div class="card">
+  <h2>התאמות AI ({{ ai_matches|length }})</h2>
+  <table>
+    <thead><tr><th>מועמד/ת</th><th>גיל</th><th>ציון</th><th>נימוק</th><th></th></tr></thead>
+    <tbody>
+      {% for m in ai_matches %}
+      <tr>
+        <td><a href="{{ url_for('candidate_detail', id=m.candidate.id) }}">{{ m.candidate.name }}</a></td>
+        <td>{{ m.candidate.age or '' }}</td>
+        <td>
+          {% set s = m.score or 0 %}
+          <span class="score {{ 'high' if s>=8 else 'mid' if s>=6 else 'low' }}">{{ s }}</span>
+        </td>
+        <td class="subtle">{{ m.explanation or '' }}</td>
+        <td>
+          <form class="inline" method="post" action="{{ url_for('match_create') }}">
+            <input type="hidden" name="candidate_a_id" value="{{ candidate.id }}">
+            <input type="hidden" name="candidate_b_id" value="{{ m.candidate.id }}">
+            <button class="btn ok sm" type="submit">צור שידוך</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>יצירת הצעת שידוך</h2>
+  <form method="post" action="{{ url_for('match_create') }}" class="filters">
+    <input type="hidden" name="candidate_a_id" value="{{ candidate.id }}">
+    <label class="field">מועמד/ת מתאים/ה
+      <select name="candidate_b_id" required>
+        <option value="">בחר/י...</option>
+        {% for p in potentials %}
+          {% if p.id not in partner_ids %}
+          <option value="{{ p.id }}">{{ p.name }}{% if p.age %} ({{ p.age }}){% endif %}{% if p.location %} · {{ p.location }}{% endif %}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </label>
+    <label class="field">הערה
+      <input type="text" name="notes" placeholder="אופציונלי">
+    </label>
+    <label class="field">&nbsp;<button class="btn" type="submit">צור הצעה</button></label>
+  </form>
+</div>
+
+{% set my_matches = candidate.matches %}
+{% if my_matches %}
+<div class="card">
+  <h2>שידוכים קיימים</h2>
+  <table>
+    <thead><tr><th>עם</th><th>סטטוס</th><th>הערה</th><th></th></tr></thead>
+    <tbody>
+      {% for m in my_matches %}
+      {% set other = m.candidate_b if m.candidate_a_id == candidate.id else m.candidate_a %}
+      <tr>
+        <td><a href="{{ url_for('candidate_detail', id=other.id) }}">{{ other.name }}</a></td>
+        <td>{{ m.status }}</td>
+        <td class="subtle">{{ m.notes or '' }}</td>
+        <td>
+          <form class="inline" method="post" action="{{ url_for('match_delete_route', id=m.id) }}">
+            <button class="btn danger sm" type="submit">מחק</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

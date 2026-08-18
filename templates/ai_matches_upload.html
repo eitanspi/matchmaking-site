@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}העלאת התאמות AI{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>העלאת קובץ התאמות</h1>
+  <span class="spacer"></span>
+  <a class="btn secondary sm" href="{{ url_for('ai_matches') }}">חזרה</a>
+</div>
+
+<div class="card">
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('ai_matches_upload') }}">
+    <label class="field">קובץ Excel (.xlsx)
+      <input type="file" name="file" accept=".xlsx" required>
+    </label>
+    <hr>
+    <button class="btn ok" type="submit">העלה</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>פורמט הקובץ</h2>
+  <p class="subtle">שורת כותרת אחת, ואז שורה לכל מועמד/ת:</p>
+  <table>
+    <thead><tr><th>שם המועמד</th><th>הצעה 1</th><th>ציון 1</th><th>הצעה 2</th><th>ציון 2</th><th>…</th></tr></thead>
+    <tbody>
+      <tr><td>רון כהן (30)</td><td>מיכל לוי (28)</td><td>9</td><td>שירה דן (27)</td><td>8.5</td><td>…</td></tr>
+    </tbody>
+  </table>
+  <p class="subtle">השמות מותאמים למועמדים לפי השם (הגיל בסוגריים מתעלמים ממנו). ודא/י שהמועמדים כבר קיימים במערכת.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}התאמות AI{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>התאמות AI</h1>
+  <span class="subtle">{{ groups|length }} מועמדים עם הצעות</span>
+  <span class="spacer"></span>
+  <div class="chips">
+    <span class="subtle">מיון:</span>
+    <a class="chip {{ 'active' if sort=='score' }}" href="{{ url_for('ai_matches', sort='score') }}">ציון</a>
+    <a class="chip {{ 'active' if sort=='name' }}" href="{{ url_for('ai_matches', sort='name') }}">שם</a>
+    <a class="chip {{ 'active' if sort=='age' }}" href="{{ url_for('ai_matches', sort='age') }}">גיל</a>
+  </div>
+  <a class="btn ok sm" href="{{ url_for('ai_matches_upload') }}">העלאת אקסל התאמות</a>
+  {% if groups %}
+  <form class="inline" method="post" action="{{ url_for('ai_matches_delete_all') }}"
+        onsubmit="return confirm('למחוק את כל הצעות ה-AI?');">
+    <button class="btn danger sm" type="submit">מחק הכל</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if groups %}
+{% for g in groups %}
+<div class="card">
+  <h2>
+    <a href="{{ url_for('candidate_detail', id=g.candidate_id) }}">{{ g.candidate_name }}</a>
+    {% if g.candidate_age %}<span class="subtle">({{ g.candidate_age }})</span>{% endif %}
+  </h2>
+  <table>
+    <thead><tr><th>הצעה</th><th>גיל</th><th>ציון</th><th></th></tr></thead>
+    <tbody>
+      {% for s in g.suggestions %}
+      <tr>
+        <td><a href="{{ url_for('candidate_detail', id=s.suggested_id) }}">{{ s.suggested_name }}</a></td>
+        <td>{{ s.suggested_age or '' }}</td>
+        <td>
+          {% set sc = s.score or 0 %}
+          <span class="score {{ 'high' if sc>=8 else 'mid' if sc>=6 else 'low' }}">{{ sc }}</span>
+        </td>
+        <td>
+          <a class="btn ghost sm" href="{{ url_for('compare', a=g.candidate_id, b=s.suggested_id) }}">השוואה</a>
+          <form class="inline" method="post" action="{{ url_for('match_create') }}">
+            <input type="hidden" name="candidate_a_id" value="{{ g.candidate_id }}">
+            <input type="hidden" name="candidate_b_id" value="{{ s.suggested_id }}">
+            <button class="btn ok sm" type="submit">צור שידוך</button>
+          </form>
+          <form class="inline" method="post" action="{{ url_for('ai_suggestion_delete', id=s.id) }}">
+            <button class="btn danger sm" type="submit">✕</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endfor %}
+{% else %}
+<div class="card empty">
+  אין הצעות AI עדיין.
+  <a href="{{ url_for('ai_matches_upload') }}">העלה/י קובץ אקסל התאמות</a>
+  בפורמט: עמודה ראשונה = שם המועמד/ת, ואחריה זוגות של (שם הצעה, ציון).
+</div>
+{% endif %}
+{% endblock %}

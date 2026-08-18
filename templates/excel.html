@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}אקסל{% endblock %}
+{% block content %}
+<div class="page-head"><h1>ייבוא / ייצוא אקסל</h1></div>
+
+<div class="card">
+  <h2>הורדת רשימת המועמדים</h2>
+  <p class="subtle">מוריד קובץ Excel עם כל המועמדים (כולל עמודת ID לעדכון חוזר).</p>
+  <a class="btn" href="{{ url_for('excel_download') }}">⬇ הורד אקסל</a>
+</div>
+
+<div class="card">
+  <h2>העלאת מועמדים מאקסל</h2>
+  <p class="subtle">
+    שורות עם ID קיים <strong>יעודכנו</strong>; שורות ללא ID (או ID לא קיים) <strong>ייווצרו</strong> כחדשות.
+    כותרות נתמכות: שם, גיל, מין, גובה, רמה דתית, מיקום, טלפון, עיסוק, סטטוס, עדה, VIP, תכירו, תיאור, מחפש/ת, ממליצים.
+  </p>
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('excel_upload') }}">
+    <label class="field">קובץ Excel (.xlsx)
+      <input type="file" name="file" accept=".xlsx" required>
+    </label>
+    <hr>
+    <button class="btn ok" type="submit">העלה</button>
+  </form>
+</div>
+{% endblock %}

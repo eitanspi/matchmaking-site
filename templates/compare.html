@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}השוואה{% endblock %}
+{% macro col(c) %}
+  {% if c %}
+  <div class="card" style="flex:1;min-width:280px">
+    <div class="page-head">
+      <h2><a href="{{ url_for('candidate_detail', id=c.id) }}">{{ c.name }}</a></h2>
+    </div>
+    {% if c.photos %}
+      <div class="detail-photo" style="width:100%;height:240px;background-image:url('{{ url_for('static', filename='photos/' ~ c.photos[0].filename) }}')"></div>
+    {% endif %}
+    <dl class="kv" style="margin-top:12px">
+      {% if c.age %}<dt>גיל</dt><dd>{{ c.age }}</dd>{% endif %}
+      {% if c.gender %}<dt>מין</dt><dd>{{ c.gender|gender_he }}</dd>{% endif %}
+      {% if c.height %}<dt>גובה</dt><dd>{{ c.height }} ס״מ</dd>{% endif %}
+      {% if c.religious_level %}<dt>רמה דתית</dt><dd>{{ c.religious_level }}</dd>{% endif %}
+      {% if c.location %}<dt>מיקום</dt><dd>{{ c.location }}</dd>{% endif %}
+      {% if c.ethnicity %}<dt>עדה</dt><dd>{{ c.ethnicity }}</dd>{% endif %}
+      {% if c.marital_status %}<dt>סטטוס</dt><dd>{{ c.marital_status }}</dd>{% endif %}
+      {% if c.occupation %}<dt>עיסוק</dt><dd>{{ c.occupation }}</dd>{% endif %}
+    </dl>
+    {% if c.description %}<hr><strong>תיאור</strong><div class="prose">{{ c.description }}</div>{% endif %}
+    {% if c.looking_for %}<hr><strong>מחפש/ת</strong><div class="prose">{{ c.looking_for }}</div>{% endif %}
+  </div>
+  {% else %}
+  <div class="card empty" style="flex:1">לא נבחר מועמד/ת</div>
+  {% endif %}
+{% endmacro %}
+{% block content %}
+<div class="page-head">
+  <h1>השוואת מועמדים</h1>
+  <span class="spacer"></span>
+  {% if candidate_a and candidate_b %}
+  <form class="inline" method="post" action="{{ url_for('match_create') }}">
+    <input type="hidden" name="candidate_a_id" value="{{ candidate_a.id }}">
+    <input type="hidden" name="candidate_b_id" value="{{ candidate_b.id }}">
+    <button class="btn ok" type="submit">צור שידוך בין השניים</button>
+  </form>
+  {% endif %}
+</div>
+<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
+  {{ col(candidate_a) }}
+  {{ col(candidate_b) }}
+</div>
+{% endblock %}

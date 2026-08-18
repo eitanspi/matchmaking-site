@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}שידוכים{% endblock %}
+{% set labels = {'proposed':'הוצע', 'in_progress':'בתהליך', 'accepted':'יצא לפועל', 'rejected':'נדחה'} %}
+{% block content %}
+<div class="page-head">
+  <h1>שידוכים</h1>
+  <span class="subtle">{{ matches|length }} הצעות</span>
+  <span class="spacer"></span>
+  <div class="chips">
+    <a class="chip {{ 'active' if not status }}" href="{{ url_for('matches') }}">הכל</a>
+    {% for key, lbl in labels.items() %}
+      <a class="chip {{ 'active' if status==key }}" href="{{ url_for('matches', status=key) }}">{{ lbl }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if matches %}
+<div class="card">
+  <table>
+    <thead><tr><th>צד א׳</th><th>צד ב׳</th><th>סטטוס</th><th>הערה</th><th></th></tr></thead>
+    <tbody>
+      {% for m in matches %}
+      {% set a = m.candidate_a %}{% set b = m.candidate_b %}
+      <tr>
+        <td>{% if a %}<a href="{{ url_for('candidate_detail', id=a.id) }}">{{ a.name }}</a>{% endif %}</td>
+        <td>{% if b %}<a href="{{ url_for('candidate_detail', id=b.id) }}">{{ b.name }}</a>{% endif %}</td>
+        <td>
+          <form class="inline" method="post" action="{{ url_for('match_update', id=m.id) }}">
+            <select name="status" onchange="this.form.submit()">
+              {% for key, lbl in labels.items() %}
+                <option value="{{ key }}" {{ 'selected' if m.status==key }}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </td>
+        <td class="subtle">{{ m.notes or '' }}</td>
+        <td>
+          <form class="inline" method="post" action="{{ url_for('match_delete_route', id=m.id) }}"
+                onsubmit="return confirm('למחוק את ההצעה?');">
+            <button class="btn danger sm" type="submit">מחק</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card empty">אין הצעות שידוך עדיין.</div>
+{% endif %}
+{% endblock %}

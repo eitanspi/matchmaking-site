@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}שידוכים{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="{{ url_for('index') }}">💍 שידוכים</a>
+      <a class="link" href="{{ url_for('index') }}">מועמדים</a>
+      <a class="link" href="{{ url_for('matches') }}">שידוכים</a>
+      <a class="link" href="{{ url_for('ai_matches') }}">התאמות AI</a>
+      <a class="link" href="{{ url_for('excel_page') }}">אקסל</a>
+      <span class="spacer"></span>
+      <a class="btn ok sm" href="{{ url_for('candidate_new') }}">+ מועמד/ת חדש/ה</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>
