@@ -1,51 +1,42 @@
-# שידוכים — Matchmaking Site
+# שידוכים — Matchmaking App
 
 A matchmaking database for candidates, matches, and AI-generated match
 suggestions. Hebrew, right-to-left UI. Comes in **two flavours**:
 
-1. **Static site (`docs/`)** — a client-side app hosted free on GitHub Pages.
-   All data lives in one **encrypted** file (`docs/data.enc`); the site asks for
-   a password and decrypts it in the browser. Nothing readable is ever public.
-   This is the "just open the link and it works" version.
-2. **Flask server (root)** — the full dynamic app (SQLite backend). Use it if you
-   want server-side storage and multi-user editing. See "Flask version" below.
+1. **Local app (`docs/`)** — a client-side app that runs in your browser with **no
+   server**. Your data is a plain JSON file on your own Mac; put it in a shared
+   iCloud/Dropbox folder to use it from two computers. This is the recommended,
+   private, free option. **Details below.**
+2. **Flask server (root)** — the full dynamic app (SQLite backend), if you ever
+   want a real hosted server. See "Flask version" below.
 
-## Live static site (GitHub Pages)
+## Local app (`docs/`)
 
-Once Pages is enabled for this repo, the site is at
-`https://<user>.github.io/matchmaking-site/`. Open it, type the password, and the
-candidate gallery, filters, matches and AI suggestions load in your browser.
+Open `docs/index.html` (via the GitHub Pages URL, or served locally). Nothing is
+uploaded anywhere — all data stays in a file you control.
 
-- **Demo password:** `demo1234` (protects only fictional sample data).
-- **Admin mode** (🔧 ניהול): add/edit/delete candidates and matches in the
-  browser, upload photos, then **⬇ שמור (ייצוא מוצפן)** downloads an updated `data.enc`.
-- **Photos:** add them per candidate in the editor. Images are downscaled in the
-  browser (max ~1000px JPEG) and stored inside the encrypted data, so they stay
-  private too.
-- **WhatsApp ZIP import** (📦): drop a WhatsApp chat export (`.zip` with
-  `_chat.txt` + photos). The site unzips and parses it fully in the browser into
-  candidates — with photos attached — using a robust parser (`parser.js`, ported
-  from the Python `parser.py`) that handles many free-text and structured Hebrew
-  profile formats. A preview lets you deselect before adding; duplicates (by name)
-  are skipped by default. Then export to save.
-- **Saving changes:** replace `docs/data.enc` in the repo with the downloaded
-  file (drag it into GitHub's web UI, or commit it). Pages redeploys in ~1 min.
-- **Change the password:** in admin mode, export and type a new password when
-  prompted — the new `data.enc` is encrypted with it. Don't commit the password
-  anywhere.
+- **Open / create a database:** on the start screen, create a new JSON data file or
+  open an existing one. In **Chrome/Edge** the app saves changes back to that file
+  automatically (File System Access API); in Safari you load a copy and save with
+  the **💾 שמור קובץ** button.
+- **Share between two Macs:** keep the JSON file in a shared **iCloud Drive** folder
+  and open it on both computers — one edits, the other sees the updates when iCloud
+  syncs. (Best with a single editor to avoid overwrite conflicts.)
+- **Admin mode** (🔧 ניהול): shows editing tools. Leave it off for view-only.
+- **Photos:** add per candidate; images are downscaled in the browser (~1000px JPEG)
+  and stored inside the JSON.
+- **WhatsApp ZIP import** (📦): drop a WhatsApp chat export (`.zip` with `_chat.txt`
+  + photos). It is unzipped and parsed **entirely in the browser** into candidates
+  with photos, using a robust parser (`parser.js`, ported from the Python
+  `parser.py`) that handles many free-text and structured Hebrew profile formats.
+  A preview lets you deselect before adding; name-duplicates are skipped.
+- **Excel** (matches the existing שידוכים spreadsheets exactly):
+  - **⬇ ייצוא אקסל** — download a candidates sheet (`ID, שם, גיל, מין, …`).
+  - **⬆ ייבוא אקסל מועמדים** — load/merge a candidates sheet (upsert by `ID`).
+  - **⬆ ייבוא אקסל הצעות** — load a match-suggestions sheet
+    (`שם המועמד | הצעה 1 | ציון 1 | …`) into the app's suggestions.
 
-### Updating data from a spreadsheet (maintainer)
-
-`tools/matchdata.py` reads/writes the same encrypted format from Python:
-
-```bash
-python tools/matchdata.py decrypt <password>            # docs/data.enc -> plaintext JSON (stdout)
-python tools/matchdata.py encrypt <password> data.json  # data.json -> docs/data.enc
-python tools/matchdata.py sample  <password>            # regenerate demo data
-```
-
-Encryption: AES-256-GCM with a PBKDF2-SHA256 (200k iterations) key — identical to
-the browser's WebCrypto, so files round-trip between Python and the site.
+No accounts, no hosting fees, works offline.
 
 ---
 

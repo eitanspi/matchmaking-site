@@ -9,16 +9,21 @@
 </head>
 <body>
 
-  <!-- password gate -->
-  <div id="gate" class="gate">
-    <form id="gate-form" class="gate-card">
+  <!-- start screen: open / create a local data file -->
+  <div id="start" class="gate">
+    <div class="gate-card" style="max-width:440px">
       <div class="logo">💍</div>
       <h1>שידוכים</h1>
-      <p>הזן/י סיסמה כדי לפתוח את המאגר</p>
-      <input id="gate-pass" type="password" placeholder="סיסמה" autocomplete="current-password" autofocus>
-      <div style="margin-top:14px"><button class="btn" type="submit" style="width:100%">כניסה</button></div>
-      <div id="gate-err" class="gate-err"></div>
-    </form>
+      <p>מאגר מועמדים והצעות שידוך — מקומי ופרטי, על המחשב שלך.</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+        <button id="btn-open" class="btn">📂 פתח מסד נתונים קיים</button>
+        <button id="btn-new" class="btn ok">✨ צור מסד נתונים חדש</button>
+        <button id="btn-resume" class="btn secondary hidden"></button>
+        <button id="btn-demo" class="btn ghost">👀 טען נתוני דוגמה (לצפייה)</button>
+        <input id="open-fallback" type="file" accept=".json" class="hidden">
+      </div>
+      <div id="start-note" class="subtle" style="margin-top:16px;font-size:.82rem"></div>
+    </div>
   </div>
 
   <!-- app -->
@@ -28,10 +33,11 @@
         <span class="brand">💍 שידוכים</span>
         <button class="tab active" data-view="candidates">מועמדים</button>
         <button class="tab" data-view="matches">שידוכים</button>
-        <button class="tab" data-view="ai">התאמות AI</button>
+        <button class="tab" data-view="ai">התאמות</button>
         <span class="spacer"></span>
+        <span id="save-status" class="subtle" style="color:#eef2ff;font-size:.82rem"></span>
         <button id="admin-toggle" class="tab">🔧 ניהול</button>
-        <button id="lock-btn" class="tab">🔒 נעל</button>
+        <button id="close-btn" class="tab">✕ סגור</button>
       </div>
     </nav>
     <div class="container" id="main"></div>
@@ -41,6 +47,7 @@
   <div id="toast" class="toast"></div>
 
   <script src="vendor/jszip.min.js"></script>
+  <script src="vendor/xlsx.full.min.js"></script>
   <script src="parser.js"></script>
   <script src="app.js"></script>
 </body>
