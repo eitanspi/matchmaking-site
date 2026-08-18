@@ -15,6 +15,12 @@ static/photos/*
 # Uploaded / generated spreadsheets
 *.xlsx
 
+# Real candidate data — never commit (repo is public)
+*.zip
+WhatsApp Chat*
+shidduchim*.json
+data.json
+
 # Secrets
 api_key.txt
 .env
