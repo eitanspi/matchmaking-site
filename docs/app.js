@@ -87,8 +87,22 @@ async function loadFromHandle(handle) {
   const text = await file.text();
   state.data = normalizeData(text.trim() ? JSON.parse(text) : {});
   state.fileHandle = handle; state.fileName = handle.name;
+  state.loadedMtime = file.lastModified;
   await idbSet('handle', handle);
   enterApp(); return true;
+}
+
+// re-read the file from disk (picks up a partner's synced changes)
+async function reloadFromFile() {
+  if (!state.fileHandle) { toast('אין קובץ מחובר'); return; }
+  try {
+    if (!(await verifyPermission(state.fileHandle))) return;
+    const file = await state.fileHandle.getFile();
+    const text = await file.text();
+    state.data = normalizeData(text.trim() ? JSON.parse(text) : {});
+    state.loadedMtime = file.lastModified;
+    closeModal(); render(); setStatus('נטען מהקובץ ✓'); toast('נטען מחדש מהדרייב');
+  } catch (e) { toast('טעינה נכשלה: ' + e.message); }
 }
 async function openDatabase() {
   try { const [h] = await window.showOpenFilePicker({ types: JSON_TYPES }); await loadFromHandle(h); }
@@ -118,8 +132,17 @@ function downloadJSON() {
 async function saveNow() {
   if (!state.fileHandle) { setStatus('לא נשמר — הורד/י גיבוי'); return; }
   try {
+    // conflict guard: did the file change on disk since we loaded it? (partner edited)
+    try {
+      const cur = await state.fileHandle.getFile();
+      if (state.loadedMtime && cur.lastModified > state.loadedMtime + 1000) {
+        const ok = confirm('⚠️ הקובץ עודכן בדרייב מאז שפתחת (אולי בן/בת הזוג ערכו).\n\nאישור = לשמור בכל זאת ולדרוס את השינויים שלהם.\nביטול = לא לשמור (מומלץ ללחוץ "🔄 רענן" כדי לקבל את הגרסה שלהם).');
+        if (!ok) { setStatus('⚠️ לא נשמר — הקובץ עודכן בדרייב'); return; }
+      }
+    } catch (_) { /* if the check fails, fall through to a normal save */ }
     const w = await state.fileHandle.createWritable();
     await w.write(JSON.stringify(state.data, null, 2)); await w.close();
+    state.loadedMtime = (await state.fileHandle.getFile()).lastModified;
     setStatus('נשמר ✓');
   } catch (e) { setStatus('שמירה נכשלה'); toast('שמירה נכשלה: ' + e.message); }
 }
@@ -158,6 +181,7 @@ function enterApp() {
   $('#start').classList.add('hidden');
   $('#app').classList.remove('hidden');
   setStatus(state.fileHandle ? 'נשמר ✓' : (state.fileName ? 'תצוגה — לשמירה הורד/י גיבוי' : 'נתוני דוגמה'));
+  $('#reload-btn').classList.toggle('hidden', !state.fileHandle);
   renderNav(); render();
 }
 
@@ -169,6 +193,7 @@ function renderNav() {
 document.querySelectorAll('.nav .tab[data-view]').forEach(t => t.addEventListener('click', () => { state.view = t.dataset.view; renderNav(); render(); }));
 $('#admin-toggle').addEventListener('click', () => { state.admin = !state.admin; renderNav(); render(); });
 $('#close-btn').addEventListener('click', () => location.reload());
+$('#reload-btn').addEventListener('click', reloadFromFile);
 
 // ---------- render ----------
 function render() {
